@@ -8,4 +8,7 @@ void app_main() {
   if (err) {
     // log it.
   }
+  stepper_update_rpm(&stepper0, 200);
+  stepper_update_direction(&stepper0, 1);
+  stepper_start(&stepper0);
 }

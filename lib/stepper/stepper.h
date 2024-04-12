@@ -32,7 +32,7 @@ typedef struct {
   .pin_dir = pin_dir_,                            \
   .pin_pulse = pin_pulse_,                        \
   .cycle_step = 200,                              \
-  .rpm = 0,                                       \
+  .rpm = 120,                                       \
   .direction = 0,                                 \
 }
 

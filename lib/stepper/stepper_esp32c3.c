@@ -4,6 +4,11 @@
 #include "driver/ledc.h"
 #include "driver/gpio.h"
 
+#define DEBUG
+#ifdef DEBUG
+#include "esp_log.h"
+#endif
+
 #define MAX_SUPPORT_STEPPER_NUMBER 4
 
 static volatile bool module_installed = false;
@@ -18,10 +23,10 @@ static volatile state_t states[MAX_SUPPORT_STEPPER_NUMBER];
 
 #define LEDC_MODE LEDC_LOW_SPEED_MODE
 // LEDC_USE_APB_CLK LEDC_USE_XTAL_CLK
-#define LEDC_DEF(pin_, timer_, channel_, duty_, freq_) {\
+#define LEDC_DEF(pin_, timer_, channel_, freq_, duty_) {\
     ledc_timer_config_t ledc_timer = {                  \
         .speed_mode       = LEDC_MODE,                  \
-        .duty_resolution  = LEDC_TIMER_4_BIT,           \
+        .duty_resolution  = LEDC_TIMER_8_BIT,           \
         .timer_num        = (timer_),                   \
         .freq_hz          = (freq_),                    \
         .clk_cfg          = LEDC_USE_APB_CLK            \
@@ -50,7 +55,7 @@ static inline uint32_t to_freq_hz(uint32_t cycle_step, uint32_t rpm) {
 }
 static inline uint32_t to_duty(uint32_t freq_hz) { // 2^4=16 resolution.
   uint32_t period_us = PERIOD(freq_hz);
-  if (period_us > 80) return 1;
+  if (period_us > 80) return 2;
 
   uint32_t duty = 80 / period_us;
   if (duty > 15) duty = 15;
@@ -96,7 +101,7 @@ stepper_err_t stepper_init(stepper_t const * stepper, stepper_config_t const * c
       states[i].config.pin_dir    = -1;
       states[i].config.pin_pulse  = -1;
       states[i].config.cycle_step = 200;
-      states[i].config.rpm        = 0;
+      states[i].config.rpm        = 60; // RPM
       states[i].config.direction  = false;
     }
     module_installed = true;
@@ -114,7 +119,7 @@ stepper_err_t stepper_init(stepper_t const * stepper, stepper_config_t const * c
   states[stepper->instance_id].config.pin_dir     = config->pin_dir;
   states[stepper->instance_id].config.pin_pulse   = config->pin_pulse;
   states[stepper->instance_id].config.cycle_step  = config->cycle_step;
-  states[stepper->instance_id].config.rpm         = config->rpm;
+  states[stepper->instance_id].config.rpm         = config->rpm > 0 ? config->rpm : 1;
   states[stepper->instance_id].config.direction   = config->direction;
 
   int err = update_gpio_config();
@@ -122,8 +127,13 @@ stepper_err_t stepper_init(stepper_t const * stepper, stepper_config_t const * c
     return INVALID_PARAMETERS; // GPIO config fail.
   }
 
-  uint32_t freq = to_freq_hz(states[stepper->instance_id].config.cycle_step, config->rpm);
+  uint32_t freq = to_freq_hz(states[stepper->instance_id].config.cycle_step, states[stepper->instance_id].config.rpm);
   uint32_t duty = to_duty(freq);
+
+#ifdef DEBUG
+  ESP_LOGI("[Stepper]", "Parameters: freq=%lu, duty=%lu", freq, duty);
+#endif
+
   LEDC_DEF(
             config->pin_pulse,
             TIMER_IDX(stepper),
@@ -150,6 +160,10 @@ stepper_err_t stepper_update_rpm(stepper_t const * stepper, uint32_t rpm)
   ledc_channel_t channel  = CHANNEL_IDX(stepper);
 
   uint32_t freq = to_freq_hz(states[stepper->instance_id].config.cycle_step, rpm);
+
+  if (freq == 0) {
+    return stepper_stop(stepper);
+  }
 
   err = ledc_set_freq(LEDC_MODE, timer, freq);
   if (err != ESP_OK) {
