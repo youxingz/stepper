@@ -6,6 +6,8 @@ typedef enum {
   INVALID_PARAMETERS,
   INVALID_STATE,
   DEVICE_BUSY,
+  FREQUENCY_UPDATE_ERROR,
+  DUTY_UPDATE_ERROR,
   INTERNEL_ERROR,
 } stepper_err_t;
 
@@ -13,11 +15,14 @@ typedef struct {
   uint8_t instance_id; // for interval use only.
 } stepper_t;
 
+/**
+ * @param idx_: integer from 0 to MAX_INSTANCE_NUMBER, i.e. 0-3 for ESP32C3
+*/
 #define STEPPER_INSTANCE(idx_) { .instance_id = idx_, }
 
 typedef struct {
-  uint32_t pin_dir;
-  uint32_t pin_pulse;
+  int32_t  pin_dir;
+  int32_t  pin_pulse;
   uint32_t cycle_step;    // 电机一圈的步数，一般步进电机为 200 步，也就是一步 1.8˚
   uint32_t rpm;           // 每分钟转速
   bool     direction :1;  // 转向
@@ -30,7 +35,6 @@ typedef struct {
   .rpm = 0,                                       \
   .direction = 0,                                 \
 }
-
 
 stepper_err_t stepper_init(stepper_t const * stepper, stepper_config_t const * config);
 

@@ -1,4 +1,4 @@
-#include "stepper.h"
+#include <stepper.h>
 
 static const stepper_t stepper0 = STEPPER_INSTANCE(0);
 
