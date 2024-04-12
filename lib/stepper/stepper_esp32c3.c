@@ -39,21 +39,34 @@ static volatile state_t states[MAX_SUPPORT_STEPPER_NUMBER];
     ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));\
 }
 
-#define TIMER_IDX(instance) (ledc_timer_t)(LEDC_TIMER_0 + (instance)->instance_id)
+#define TIMER_IDX(instance)   (ledc_timer_t)(LEDC_TIMER_0 + (instance)->instance_id)
 #define CHANNEL_IDX(instance) (ledc_channel_t)(LEDC_CHANNEL_0 + (instance)->instance_id)
+#define PERIOD(freq)          (1000000 / freq)
 
 static inline uint32_t to_freq_hz(uint32_t cycle_step, uint32_t rpm) {
-  return 0;
+  // 1RPS = 60RPM = cycle_step pulse/s = 60 * cycle_step pulse/s
+  uint32_t pulse_per_second = (rpm * cycle_step / 60);
+  return pulse_per_second;
 }
-static inline uint32_t to_duty(uint32_t freq_hz) {
-  return 0;
+static inline uint32_t to_duty(uint32_t freq_hz) { // 2^4=16 resolution.
+  uint32_t period_us = PERIOD(freq_hz);
+  if (period_us > 80) return 1;
+
+  uint32_t duty = 80 / period_us;
+  if (duty > 15) duty = 15;
+
+  return duty;
 }
 
 static int update_gpio_config() {
     uint64_t pin_mask = 0;
     for (int i = 0; i < MAX_SUPPORT_STEPPER_NUMBER; i++) {
-      pin_mask |= 1ULL << (states[i].config.pin_dir);
-      pin_mask |= 1ULL << (states[i].config.pin_pulse);
+      if (states[i].config.pin_dir > -1) {
+        pin_mask |= 1ULL << (states[i].config.pin_dir);
+      }
+      if (states[i].config.pin_pulse > -1) {
+        pin_mask |= 1ULL << (states[i].config.pin_pulse);
+      }
     }
     gpio_config_t io_conf = {
         .pin_bit_mask   = pin_mask,
