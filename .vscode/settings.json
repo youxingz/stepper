@@ -1,0 +1,6 @@
+{
+  "files.associations": {
+    "stepper.h": "c",
+    "stdint.h": "c"
+  }
+}
