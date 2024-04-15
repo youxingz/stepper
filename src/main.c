@@ -1,4 +1,9 @@
 #include <stepper.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#ifdef DEBUG
+#include "esp_log.h"
+#endif
 
 static const stepper_t stepper0 = STEPPER_INSTANCE(0);
 
@@ -8,7 +13,18 @@ void app_main() {
   if (err) {
     // log it.
   }
-  stepper_update_rpm(&stepper0, 200);
-  stepper_update_direction(&stepper0, 1);
-  stepper_start(&stepper0);
+  // stepper_start(&stepper0);
+  uint32_t rpm;
+  bool dir = false;
+  for (int i = 0 ;; i++) {
+    vTaskDelay(10);
+    rpm = (i * 10);
+    dir = !dir;
+    if (i > 100) { i = 0; }
+#ifdef DEBUG
+  ESP_LOGI("[Motor]", "Parameters: rpm=%lu, dir=%s", rpm, dir ? "po" : "ne");
+#endif
+    stepper_update_rpm(&stepper0, rpm);
+    stepper_update_direction(&stepper0, dir);
+  }
 }

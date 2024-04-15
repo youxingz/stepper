@@ -3,6 +3,7 @@
     "stepper.h": "c",
     "stdint.h": "c",
     "ledc.h": "c",
-    "gpio.h": "c"
+    "gpio.h": "c",
+    "ledc_types.h": "c"
   }
 }

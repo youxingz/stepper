@@ -4,14 +4,15 @@
 #include "driver/ledc.h"
 #include "driver/gpio.h"
 
-#define DEBUG
 #ifdef DEBUG
 #include "esp_log.h"
 #endif
 
 #define MAX_SUPPORT_STEPPER_NUMBER 4
 
+#define FREQUENCY_THRESH           (360)
 static volatile bool module_installed = false;
+static volatile uint8_t duty_resolution = LEDC_TIMER_8_BIT;
 
 typedef struct {
   stepper_config_t  config;
@@ -22,14 +23,15 @@ typedef struct {
 static volatile state_t states[MAX_SUPPORT_STEPPER_NUMBER];
 
 #define LEDC_MODE LEDC_LOW_SPEED_MODE
+#define LEDC_CLK  LEDC_USE_APB_CLK
 // LEDC_USE_APB_CLK LEDC_USE_XTAL_CLK
-#define LEDC_DEF(pin_, timer_, channel_, freq_, duty_) {\
+#define LEDC_DEF(pin_, timer_, channel_, freq_, duty_, duty_res_) {\
     ledc_timer_config_t ledc_timer = {                  \
         .speed_mode       = LEDC_MODE,                  \
-        .duty_resolution  = LEDC_TIMER_8_BIT,           \
+        .duty_resolution  = (duty_res_),                \
         .timer_num        = (timer_),                   \
         .freq_hz          = (freq_),                    \
-        .clk_cfg          = LEDC_USE_APB_CLK            \
+        .clk_cfg          = LEDC_CLK                    \
     };                                                  \
     ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));    \
     ledc_channel_config_t ledc_channel = {              \
@@ -53,12 +55,14 @@ static inline uint32_t to_freq_hz(uint32_t cycle_step, uint32_t rpm) {
   uint32_t pulse_per_second = (rpm * cycle_step / 60);
   return pulse_per_second;
 }
-static inline uint32_t to_duty(uint32_t freq_hz) { // 2^4=16 resolution.
+static inline uint32_t to_duty(uint32_t freq_hz) {
+#define PULSE_WIDTH 6
+#define PULSE_FRAC  ((1 << duty_resolution) * PULSE_WIDTH)
   uint32_t period_us = PERIOD(freq_hz);
-  if (period_us > 80) return 2;
+  if (period_us > PULSE_FRAC) return 2;
 
-  uint32_t duty = 80 / period_us;
-  if (duty > 15) duty = 15;
+  uint32_t duty = PULSE_FRAC / period_us;
+  if (duty > (1 << duty_resolution)) duty = (1 << duty_resolution) - 1;
 
   return duty;
 }
@@ -98,10 +102,11 @@ stepper_err_t stepper_init(stepper_t const * stepper, stepper_config_t const * c
 {
   if (!module_installed) {
     for (int i = 0; i < MAX_SUPPORT_STEPPER_NUMBER; i++) {
+      if (stepper->instance_id == i) continue;
       states[i].config.pin_dir    = -1;
       states[i].config.pin_pulse  = -1;
-      states[i].config.cycle_step = 200;
-      states[i].config.rpm        = 60; // RPM
+      states[i].config.cycle_step = 3200;
+      states[i].config.rpm        = 1;    // RPM
       states[i].config.direction  = false;
     }
     module_installed = true;
@@ -134,12 +139,14 @@ stepper_err_t stepper_init(stepper_t const * stepper, stepper_config_t const * c
   ESP_LOGI("[Stepper]", "Parameters: freq=%lu, duty=%lu", freq, duty);
 #endif
 
+  duty_resolution = (freq > FREQUENCY_THRESH) ? LEDC_TIMER_8_BIT : LEDC_TIMER_14_BIT;
   LEDC_DEF(
             config->pin_pulse,
             TIMER_IDX(stepper),
             CHANNEL_IDX(stepper),
             freq,
-            duty
+            duty,
+            duty_resolution
           );
   
   states[stepper->instance_id].inited = true;
@@ -161,24 +168,53 @@ stepper_err_t stepper_update_rpm(stepper_t const * stepper, uint32_t rpm)
 
   uint32_t freq = to_freq_hz(states[stepper->instance_id].config.cycle_step, rpm);
 
-  if (freq == 0) {
+  if (freq < 10) {
     return stepper_stop(stepper);
   }
 
-  err = ledc_set_freq(LEDC_MODE, timer, freq);
-  if (err != ESP_OK) {
-    return FREQUENCY_UPDATE_ERROR;
+  uint32_t duty = to_duty(freq);
+
+#ifdef DEBUG
+  ESP_LOGI("[Stepper/stepper_update_rpm]", "Parameters: freq=%lu, duty=%lu", freq, duty);
+#endif
+
+  uint32_t freq_old = ledc_get_freq(LEDC_MODE, timer);
+#ifdef DEBUG
+  ESP_LOGI("[Stepper/stepper_update_rpm]", "Settings: old_freq=%lu, new_freq=%lu", freq_old, freq);
+#endif
+  if ((freq_old > FREQUENCY_THRESH) != (freq > FREQUENCY_THRESH)) {
+    // update duty_resolution. (reconfig all)
+    duty_resolution = (freq > FREQUENCY_THRESH) ? LEDC_TIMER_8_BIT : LEDC_TIMER_14_BIT;
+    ledc_timer_pause(LEDC_MODE, timer);
+    ledc_timer_config_t ledc_timer = {
+      .speed_mode       = LEDC_MODE,
+      .duty_resolution  = duty_resolution,
+      .timer_num        = timer,
+      .freq_hz          = freq,
+      .clk_cfg          = LEDC_CLK
+    };
+    ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));    
+    ledc_timer_rst(LEDC_MODE, timer);
+    ledc_timer_resume(LEDC_MODE, timer);
+  } else {
+    ledc_timer_pause(LEDC_MODE, timer);
+    err = ledc_set_freq(LEDC_MODE, timer, freq);
+    if (err != ESP_OK) {
+      return FREQUENCY_UPDATE_ERROR;
+    }
+
+    err = ledc_set_duty(LEDC_MODE, channel, duty);
+    if (err != ESP_OK) {
+      return DUTY_UPDATE_ERROR;
+    }
+
+    err = ledc_update_duty(LEDC_MODE, channel);
+    if (err != ESP_OK) {
+      return DUTY_UPDATE_ERROR;
+    }
+    ledc_timer_resume(LEDC_MODE, timer);
   }
 
-  err = ledc_set_duty(LEDC_MODE, channel, to_duty(freq));
-  if (err != ESP_OK) {
-    return DUTY_UPDATE_ERROR;
-  }
-
-  err = ledc_update_duty(LEDC_MODE, channel);
-  if (err != ESP_OK) {
-    return DUTY_UPDATE_ERROR;
-  }
   return SUCCESS;
 }
 

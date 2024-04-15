@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// #define DEBUG
+
 typedef enum {
   SUCCESS        = 0,
   INVALID_PARAMETERS,
@@ -31,8 +33,8 @@ typedef struct {
 #define STEPPER_CONFIG(pin_dir_, pin_pulse_) {    \
   .pin_dir = pin_dir_,                            \
   .pin_pulse = pin_pulse_,                        \
-  .cycle_step = 200,                              \
-  .rpm = 120,                                       \
+  .cycle_step = 3200,                             \
+  .rpm = 10,                                       \
   .direction = 0,                                 \
 }
 
