@@ -34,6 +34,7 @@ static volatile state_t states[MAX_SUPPORT_STEPPER_NUMBER];
         .clk_cfg          = LEDC_CLK                    \
     };                                                  \
     ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));    \
+    ledc_timer_pause(LEDC_MODE, timer_);                \
     ledc_channel_config_t ledc_channel = {              \
         .gpio_num       = pin_,                         \
         .speed_mode     = LEDC_MODE,                    \
@@ -150,7 +151,9 @@ stepper_err_t stepper_init(stepper_t const * stepper, stepper_config_t const * c
             duty,
             duty_resolution
           );
-  
+
+  // ledc_timer_pause(LEDC_MODE, TIMER_IDX(stepper)); // pause after initialized success.
+
   states[stepper->instance_id].inited = true;
 
   return SUCCESS;

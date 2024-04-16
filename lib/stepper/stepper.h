@@ -34,7 +34,7 @@ typedef struct {
 #define STEPPER_CONFIG(pin_dir_, pin_pulse_) {       \
   .pin_dir      = pin_dir_,                          \
   .pin_pulse    = pin_pulse_,                        \
-  .pulse_us     = 6,                                 \
+  .pulse_us     = 3,                                 \
   .subdivision  = 3200,                              \
   .rpm          = 10,                                \
   .direction    = 0,                                 \
