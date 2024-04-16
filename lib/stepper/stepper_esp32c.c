@@ -1,5 +1,7 @@
 #include "stepper.h"
 
+#if defined(MCU_ESP32Cx) | defined(MCU_ESP32Sx)
+
 #include "esp_err.h"
 #include "driver/ledc.h"
 #include "driver/gpio.h"
@@ -258,3 +260,5 @@ stepper_err_t stepper_stop(stepper_t const * stepper)
 
   return SUCCESS;
 }
+
+#endif

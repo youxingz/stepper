@@ -2,6 +2,8 @@
 #include <stdbool.h>
 
 // #define DEBUG
+#define MCU_ESP32Cx
+// #define MCU_ESP32Sx
 
 typedef enum {
   SUCCESS        = 0,
