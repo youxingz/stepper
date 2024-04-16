@@ -25,17 +25,19 @@ typedef struct {
 typedef struct {
   int32_t  pin_dir;
   int32_t  pin_pulse;
-  uint32_t cycle_step;    // 电机一圈的步数，一般步进电机为 200 步，也就是一步 1.8˚
+  uint32_t subdivision;   // 细分，电机一圈的步数，一般步进电机为 200 步，也就是一步 1.8˚
+  uint32_t pulse_us;      // 每个脉冲最短有效时长，默认 5us
   uint32_t rpm;           // 每分钟转速
   bool     direction :1;  // 转向
 } stepper_config_t;
 
-#define STEPPER_CONFIG(pin_dir_, pin_pulse_) {    \
-  .pin_dir = pin_dir_,                            \
-  .pin_pulse = pin_pulse_,                        \
-  .cycle_step = 3200,                             \
-  .rpm = 10,                                       \
-  .direction = 0,                                 \
+#define STEPPER_CONFIG(pin_dir_, pin_pulse_) {       \
+  .pin_dir      = pin_dir_,                          \
+  .pin_pulse    = pin_pulse_,                        \
+  .pulse_us     = 6,                                 \
+  .subdivision  = 3200,                              \
+  .rpm          = 10,                                \
+  .direction    = 0,                                 \
 }
 
 stepper_err_t stepper_init(stepper_t const * stepper, stepper_config_t const * config);

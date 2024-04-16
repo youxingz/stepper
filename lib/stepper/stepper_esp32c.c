@@ -50,14 +50,14 @@ static volatile state_t states[MAX_SUPPORT_STEPPER_NUMBER];
 #define CHANNEL_IDX(instance) (ledc_channel_t)(LEDC_CHANNEL_0 + (instance)->instance_id)
 #define PERIOD(freq)          (1000000 / freq)
 
-static inline uint32_t to_freq_hz(uint32_t cycle_step, uint32_t rpm) {
-  // 1RPS = 60RPM = cycle_step pulse/s = 60 * cycle_step pulse/s
-  uint32_t pulse_per_second = (rpm * cycle_step / 60);
+static inline uint32_t to_freq_hz(uint32_t subdivision, uint32_t rpm) {
+  // 1RPS = 60RPM = subdivision pulse/s = 60 * subdivision pulse/s
+  uint32_t pulse_per_second = (rpm * subdivision / 60);
   return pulse_per_second;
 }
-static inline uint32_t to_duty(uint32_t freq_hz) {
-#define PULSE_WIDTH 6
-#define PULSE_FRAC  ((1 << duty_resolution) * PULSE_WIDTH)
+static inline uint32_t to_duty(uint32_t freq_hz, uint32_t mini_duty_us) {
+// #define PULSE_WIDTH 6
+#define PULSE_FRAC  ((1 << duty_resolution) * mini_duty_us)
   uint32_t period_us = PERIOD(freq_hz);
   if (period_us > PULSE_FRAC) return 2;
 
@@ -105,9 +105,10 @@ stepper_err_t stepper_init(stepper_t const * stepper, stepper_config_t const * c
       if (stepper->instance_id == i) continue;
       states[i].config.pin_dir    = -1;
       states[i].config.pin_pulse  = -1;
-      states[i].config.cycle_step = 3200;
+      states[i].config.subdivision = 3200;
       states[i].config.rpm        = 1;    // RPM
       states[i].config.direction  = false;
+      states[i].config.pulse_us   = 6;    // us
     }
     module_installed = true;
   }
@@ -123,17 +124,18 @@ stepper_err_t stepper_init(stepper_t const * stepper, stepper_config_t const * c
   }
   states[stepper->instance_id].config.pin_dir     = config->pin_dir;
   states[stepper->instance_id].config.pin_pulse   = config->pin_pulse;
-  states[stepper->instance_id].config.cycle_step  = config->cycle_step;
+  states[stepper->instance_id].config.subdivision = config->subdivision;
   states[stepper->instance_id].config.rpm         = config->rpm > 0 ? config->rpm : 1;
   states[stepper->instance_id].config.direction   = config->direction;
+  states[stepper->instance_id].config.pulse_us    = config->pulse_us;
 
   int err = update_gpio_config();
   if (err) {
     return INVALID_PARAMETERS; // GPIO config fail.
   }
 
-  uint32_t freq = to_freq_hz(states[stepper->instance_id].config.cycle_step, states[stepper->instance_id].config.rpm);
-  uint32_t duty = to_duty(freq);
+  uint32_t freq = to_freq_hz(states[stepper->instance_id].config.subdivision, states[stepper->instance_id].config.rpm);
+  uint32_t duty = to_duty(freq, states[stepper->instance_id].config.pulse_us);
 
 #ifdef DEBUG
   ESP_LOGI("[Stepper]", "Parameters: freq=%lu, duty=%lu", freq, duty);
@@ -166,13 +168,13 @@ stepper_err_t stepper_update_rpm(stepper_t const * stepper, uint32_t rpm)
   ledc_timer_t   timer    = TIMER_IDX(stepper);
   ledc_channel_t channel  = CHANNEL_IDX(stepper);
 
-  uint32_t freq = to_freq_hz(states[stepper->instance_id].config.cycle_step, rpm);
+  uint32_t freq = to_freq_hz(states[stepper->instance_id].config.subdivision, rpm);
 
   if (freq < 10) {
     return stepper_stop(stepper);
   }
 
-  uint32_t duty = to_duty(freq);
+  uint32_t duty = to_duty(freq, states[stepper->instance_id].config.pulse_us);
 
 #ifdef DEBUG
   ESP_LOGI("[Stepper/stepper_update_rpm]", "Parameters: freq=%lu, duty=%lu", freq, duty);

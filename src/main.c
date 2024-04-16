@@ -18,7 +18,7 @@ void app_main() {
   bool dir = false;
   for (int i = 0 ;; i++) {
     vTaskDelay(10);
-    rpm = (i * 10);
+    rpm = (i * 50);
     dir = !dir;
     if (i > 100) { i = 0; }
 #ifdef DEBUG
