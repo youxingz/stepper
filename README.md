@@ -10,7 +10,7 @@
 
 Multiple platforms:
 
-- [x] ESP32Cx Series
+- [x] ESP32Cx, ESP32Sx Series
 - [ ] STM32
 - [ ] Nordic RF52 Series
 
