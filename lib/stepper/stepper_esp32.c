@@ -1,6 +1,6 @@
 #include "stepper.h"
 
-#if defined(MCU_ESP32Cx) | defined(MCU_ESP32Sx)
+#if defined(MCU_ESP32)
 
 #include "esp_err.h"
 #include "driver/ledc.h"
@@ -13,13 +13,13 @@
 #define MAX_SUPPORT_STEPPER_NUMBER 4
 
 #define FREQUENCY_THRESH           (360)
-static volatile bool module_installed = false;
+static volatile bool module_installed   = false;
 static volatile uint8_t duty_resolution = LEDC_TIMER_8_BIT;
 
 typedef struct {
   stepper_config_t  config;
-  volatile bool     running:  1;
-  bool              inited:   1;
+  volatile bool     running;
+  bool              inited;
 } state_t;
 
 static volatile state_t states[MAX_SUPPORT_STEPPER_NUMBER];

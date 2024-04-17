@@ -4,6 +4,9 @@
     "stdint.h": "c",
     "ledc.h": "c",
     "gpio.h": "c",
-    "ledc_types.h": "c"
+    "ledc_types.h": "c",
+    "nrfx_pwm.h": "c",
+    "nrf_gpiote.h": "c",
+    "nrf_gpio.h": "c"
   }
 }

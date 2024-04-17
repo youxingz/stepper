@@ -1,4 +1,7 @@
 #include <stepper.h>
+
+#if defined(MCU_ESP32)
+
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #ifdef DEBUG
@@ -28,3 +31,5 @@ void app_main() {
     stepper_update_direction(&stepper0, dir);
   }
 }
+
+#endif
