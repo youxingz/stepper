@@ -70,6 +70,16 @@ typedef struct {
   bool     direction;     // 转向
 } stepper_config_t;
 
+#if defined(MCU_NORDIC_RF)
+#define STEPPER_CONFIG(pin_dir_, pin_pulse_) {       \
+  .pin_dirs     = { pin_dir_, pin_dir_, pin_dir_, pin_dir_ },          \
+  .pin_pulses   = { pin_pulse_, pin_pulse_, pin_pulse_, pin_pulse_ },  \
+  .pulse_us     = 3,                                 \
+  .subdivision  = 3200,                              \
+  .rpm          = 10,                                \
+  .direction    = 0,                                 \
+}
+#else
 #define STEPPER_CONFIG(pin_dir_, pin_pulse_) {       \
   .pin_dir      = pin_dir_,                          \
   .pin_pulse    = pin_pulse_,                        \
@@ -78,6 +88,7 @@ typedef struct {
   .rpm          = 10,                                \
   .direction    = 0,                                 \
 }
+#endif
 
 /**
  * @brief initialize stepper device and config it.
