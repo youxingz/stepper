@@ -2,10 +2,11 @@
 
 #if defined(MCU_NORDIC_RF)
 
-#define NRFX_PWM0_ENABLED 1
-#define NRFX_PWM1_ENABLED 1
-#define NRFX_PWM2_ENABLED 1
-#define NRFX_PWM3_ENABLED 1
+// #define NRFX_PWM_ENABLED  1
+// #define NRFX_PWM0_ENABLED 1
+// #define NRFX_PWM1_ENABLED 1
+// #define NRFX_PWM2_ENABLED 1
+// #define NRFX_PWM3_ENABLED 1
 
 #include <nrfx_pwm.h>
 #include <hal/nrf_gpio.h>
