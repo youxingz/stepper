@@ -12,7 +12,7 @@ Multiple platforms:
 
 - [x] ESP32Cx, ESP32Sx Series
 - [ ] STM32
-- [ ] Nordic RF52 Series
+- [x] Nordic RF52 Series
 
 ### Install
 
